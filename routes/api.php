@@ -17,4 +17,6 @@ use App\Http\Controllers\TransactionController;
 
 Route::post('transaction', [TransactionController::class, 'transfer']);
 
+Route::post('transaction/bank', [TransactionController::class, 'transferToOtherBank']);
+
 Route::get('transaction/statement/{wallet}', [TransactionController::class, "getStatement"]);

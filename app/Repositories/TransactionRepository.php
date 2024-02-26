@@ -10,6 +10,7 @@ namespace App\Repositories;
 
 
 use App\Models\Transaction;
+use App\Models\Wallet;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +24,7 @@ class TransactionRepository
      *
      * @return Collection
      */
-    public static function getAllFromPeriod($wallet_id, $periodStart, $periodEnd) {
+    public function getAllFromPeriod($wallet_id, $periodStart, $periodEnd) {
         return Transaction::where(
                 function ($query) use ($wallet_id){
                     $query->where('payee_wallet_id',$wallet_id)->orWhere('payer_wallet_id',$wallet_id);
@@ -31,25 +32,23 @@ class TransactionRepository
             )->whereBetween('created_at',[$periodStart,$periodEnd])->get();
     }
 
-    /**
-     * @param $amount
-     * @param $payeeWallet
-     * @param $payerWallet
-     *
-     * @return bool
-     */
-    public static function effectuateTransaction($amount, $payeeWallet, $payerWallet) {
+    public function effectuateTransaction(float $amount, Wallet $payerWallet, Wallet $payeeWallet = null): bool {
         try {
             DB::beginTransaction();
-            Transaction::create([
+            $transactionData = [
                 'amount' => $amount,
-                'payee_wallet_id' => $payeeWallet->id,
                 'payer_wallet_id' => $payerWallet->id
-            ]);
+            ];
+
+            if ($payeeWallet !== null) {
+                $transactionData['payee_wallet_id'] = $payeeWallet->id;
+                $payeeWallet->amount += $amount;
+                $payeeWallet->save();
+            }
+
+            Transaction::create($transactionData);
 
             $payerWallet->amount -= $amount;
-            $payeeWallet->amount += $amount;
-            $payeeWallet->save();
             $payerWallet->save();
 
             DB::commit();
